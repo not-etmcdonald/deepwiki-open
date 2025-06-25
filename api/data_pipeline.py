@@ -19,6 +19,9 @@ from requests.exceptions import RequestException
 
 from api.tools.embedder import get_embedder
 
+ADO_ORG = os.getenv("ADO_ORG", "")
+ADO_PROJECT = os.getenv("ADO_PROJECT", "")
+
 # Configure logging
 logger = logging.getLogger(__name__)
 
@@ -100,6 +103,17 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
             elif type == "bitbucket":
                 # Format: https://{token}@bitbucket.org/owner/repo.git
                 clone_url = urlunparse((parsed.scheme, f"{access_token}@{parsed.netloc}", parsed.path, '', '', ''))
+            elif type == "azuredevops":
+                if not ADO_ORG or not ADO_PROJECT:
+                    raise ValueError("ADO_ORG and ADO_PROJECT environment variables must be set for Azure DevOps repositories.")
+                if parsed.netloc != "dev.azure.com":
+                    raise ValueError("Azure DevOps repository URL must use dev.azure.com as the host.")
+                # Path: /{organization}/{project}/_git/{repo}
+                path_parts = parsed.path.strip("/").split("/")
+                if len(path_parts) < 4 or path_parts[0] != ADO_ORG or path_parts[1] != ADO_PROJECT or path_parts[2] != "_git":
+                    raise ValueError(f"Azure DevOps repository URL must be in the form https://dev.azure.com/{ADO_ORG}/{ADO_PROJECT}/_git/<repo>")
+                clone_url = urlunparse((parsed.scheme, f"{access_token}@{parsed.netloc}", parsed.path, '', '', ''))
+                logger.info("Using Azure DevOps repository: %s", clone_url)
             logger.info("Using access token for authentication")
 
         # Clone the repository
