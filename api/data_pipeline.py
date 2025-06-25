@@ -706,7 +706,7 @@ class DatabaseManager:
         logger.info(f"Preparing repo storage for {repo_url_or_path}...")
 
         try:
-            root_path = "/.deepwiki" #get_adalflow_default_root_path()
+            root_path = "/.deepwikismb" #get_adalflow_default_root_path()
 
             os.makedirs(root_path, exist_ok=True)
             # url
