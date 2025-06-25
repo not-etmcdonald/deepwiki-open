@@ -76,6 +76,16 @@ export default function TokenInput({
                 >
                   <span className="text-sm">Bitbucket</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPlatform('azuredevops')}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-md border transition-all ${selectedPlatform === 'azuredevops'
+                    ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)] text-[var(--accent-primary)] shadow-sm'
+                    : 'border-[var(--border-color)] text-[var(--foreground)] hover:bg-[var(--background)]'
+                    }`}
+                >
+                  <span className="text-sm">Azure Dev Ops</span>
+                </button>
               </div>
             </div>
           )}
