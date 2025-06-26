@@ -144,6 +144,7 @@ export default function Home() {
 
     // Handle Windows absolute paths (e.g., C:\path\to\folder)
     const windowsPathRegex = /^[a-zA-Z]:\\(?:[^\\/:*?"<>|\r\n]+\\)*[^\\/:*?"<>|\r\n]*$/;
+    const azureDevOpsRegex = /^https?:\/\/dev\.azure\.com\/([^\/]+)\/([^\/]+)\/_git\/([^\/]+)\/?$/;
     const customGitRegex = /^(?:https?:\/\/)?([^\/]+)\/(.+?)\/([^\/]+)(?:\.git)?\/?$/;
 
     if (windowsPathRegex.test(input)) {
@@ -158,8 +159,15 @@ export default function Home() {
       localPath = input;
       repo = input.split('/').filter(Boolean).pop() || 'local-repo';
       owner = 'local';
-    }
-    else if (customGitRegex.test(input)) {
+    } else if (azureDevOpsRegex.test(input)) {
+      const match = input.match(azureDevOpsRegex);
+      if (match) {
+        owner = match[1];
+        repo = match[3];
+        type = 'azuredevops';
+        fullPath = `${match[1]}/${match[2]}/_git/${match[3]}`;
+      }
+    } else if (customGitRegex.test(input)) {
       type = 'web';
       fullPath = extractUrlPath(input)?.replace(/\.git$/, '');
       const parts = fullPath?.split('/') ?? [];

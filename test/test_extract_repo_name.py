@@ -58,6 +58,16 @@ class TestExtractRepoNameFromUrl:
         assert result == "subgroup_repo"
         
         print("✓ GitLab URL tests passed")
+
+    def test_extract_repo_name_ado_urls(self):
+        """Test repository name extraction from GitLab URLs"""
+        
+        # Test standard Azure Devops URL
+        gitlab_url = "https://dev.azure.com/organization/project/_git/owner_repo"
+        result = self.db_manager._extract_repo_name_from_url(gitlab_url, "azuredevops")
+        assert result == "project_owner_repo"
+        
+        print("✓ Azure Devops URL tests passed")
     
     def test_extract_repo_name_bitbucket_urls(self):
         """Test repository name extraction from Bitbucket URLs"""

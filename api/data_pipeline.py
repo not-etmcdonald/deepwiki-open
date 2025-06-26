@@ -678,10 +678,20 @@ class DatabaseManager:
         self.repo_paths = None
 
     def _extract_repo_name_from_url(self, repo_url_or_path: str, repo_type: str) -> str:
-        # Extract owner and repo name to create unique identifier
-        url_parts = repo_url_or_path.rstrip('/').split('/')
+        # Remove trailing slashes and .git suffix
+        cleaned_url = repo_url_or_path.rstrip('/').replace(".git", "")
+        url_parts = cleaned_url.split('/')
 
-        if repo_type in ["github", "gitlab", "bitbucket"] and len(url_parts) >= 5:
+        if repo_type == "azuredevops" and "_git" in url_parts:
+            # Azure DevOps: owner is the project, repo is after "_git"
+            git_index = url_parts.index("_git")
+            if git_index > 0 and git_index + 1 < len(url_parts):
+                project = url_parts[git_index - 1]
+                repo = url_parts[git_index + 1]
+                repo_name = f"{project}_{repo}"
+            else:
+                repo_name = url_parts[-1]
+        elif repo_type in ["github", "gitlab", "bitbucket"] and len(url_parts) >= 5:
             # GitHub URL format: https://github.com/owner/repo
             # GitLab URL format: https://gitlab.com/owner/repo or https://gitlab.com/group/subgroup/repo
             # Bitbucket URL format: https://bitbucket.org/owner/repo
