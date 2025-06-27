@@ -700,7 +700,6 @@ class DatabaseManager:
             List[Document]: List of Document objects
         """
         self.reset_database()
-        logger.info(f"Got repository path: {repository_path} in prepare_database")
         self._create_repo(repo_url_or_path, type, access_token, repository_path)
         return self.prepare_db_index(is_ollama_embedder=is_ollama_embedder, excluded_dirs=excluded_dirs, excluded_files=excluded_files,
                                    included_dirs=included_dirs, included_files=included_files)

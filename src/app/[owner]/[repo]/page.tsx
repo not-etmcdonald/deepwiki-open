@@ -190,7 +190,6 @@ export default function RepoWikiPage() {
   const language = searchParams.get('language') || 'en';
 
   const repositoryPath = decodeURIComponent(searchParams.get('repository_path') || ''); // Get repository path from search params
-  console.log('Right after setting repositoryPath with search params', repositoryPath);
 
   // Import language context for translations
   const { messages } = useLanguage();
@@ -470,8 +469,6 @@ Remember:
 
           // Create a new WebSocket connection
           const ws = new WebSocket(wsUrl);
-          
-          console.log("Request body for WebSocket:", requestBody);
           // Create a promise that resolves when the WebSocket connection is complete
           await new Promise<void>((resolve, reject) => {
             // Set up event handlers
@@ -1340,7 +1337,6 @@ IMPORTANT:
       }
 
       // Now determine the wiki structure
-      console.log("Determining wiki structure with: ", {repositoryPath})
       await determineWikiStructure(fileTreeData, readmeContent, owner, repo, repositoryPath);
 
     } catch (error) {

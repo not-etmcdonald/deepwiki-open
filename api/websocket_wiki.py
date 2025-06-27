@@ -59,9 +59,7 @@ async def handle_websocket_chat(websocket: WebSocket):
     try:
         # Receive and parse the request data
         request_data = await websocket.receive_json()
-        logger.info(f"Received request data: {request_data}")
         request = ChatCompletionRequest(**request_data)
-        logger.info(f"Parsed request: {request}")
 
         # Check if request contains very large input
         input_too_large = False
