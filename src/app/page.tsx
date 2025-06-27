@@ -86,6 +86,10 @@ export default function Home() {
   // Wiki type state - default to comprehensive view
   const [isComprehensiveView, setIsComprehensiveView] = useState<boolean>(true);
 
+  // Repository input path for large repositories
+  const [repositoryPath, setRepositoryPath] = useState<string>('');
+
+  // File filters state
   const [excludedDirs, setExcludedDirs] = useState('');
   const [excludedFiles, setExcludedFiles] = useState('');
   const [includedDirs, setIncludedDirs] = useState('');
@@ -291,6 +295,10 @@ export default function Home() {
     if (isCustomModel && customModel) {
       params.append('custom_model', customModel);
     }
+    // Add repository path if it exists
+    if (repositoryPath) {
+      params.append('repository_path', encodeURIComponent(repositoryPath));
+    }
     // Add file filters configuration
     if (excludedDirs) {
       params.append('excluded_dirs', excludedDirs);
@@ -374,6 +382,8 @@ export default function Home() {
             isOpen={isConfigModalOpen}
             onClose={() => setIsConfigModalOpen(false)}
             repositoryInput={repositoryInput}
+            repositoryPath={repositoryPath}
+            setRepositoryPath={setRepositoryPath}
             selectedLanguage={selectedLanguage}
             setSelectedLanguage={setSelectedLanguage}
             supportedLanguages={supportedLanguages}

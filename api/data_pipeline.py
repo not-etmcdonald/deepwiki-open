@@ -58,7 +58,7 @@ def count_tokens(text: str, is_ollama_embedder: bool = None) -> int:
         # Rough approximation: 4 characters per token
         return len(text) // 4
 
-def download_repo(repo_url: str, local_path: str, type: str = "github", access_token: str = None) -> str:
+def download_repo(repo_url: str, local_path: str, type: str = "github", access_token: str = None, repository_path: str = None) -> str:
     """
     Downloads a Git repository (GitHub or Azure Devops) to a specified local path.
 
@@ -111,14 +111,55 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
             logger.info("Using access token for authentication")
 
         # Clone the repository
-        logger.info(f"Cloning repository from {repo_url} to {local_path}")
+        if repository_path:
+            # If a specific path is provided, use sparse checkout
+            logger.info(f"Using sparse checkout for path: {repository_path}")
+            # Step 1: Clone without checkout
+            subprocess.run(
+                ["git", "clone", "--depth=1", "--filter=blob:none", "--no-checkout", clone_url, local_path],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            logger.info(f"Repository cloned to {local_path}. Now setting up sparse checkout for path: {repository_path}")
+            # Step 2: Enable sparse checkout
+            subprocess.run(
+                ["git", "sparse-checkout", "init", "--cone"],
+                cwd=local_path,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            # Step 3: Set the sparse checkout paths
+            logger.info(f"Setting sparse checkout paths: {repository_path}")
+            subprocess.run(
+                ["git", "sparse-checkout", "set", repository_path],
+                cwd=local_path,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            logger.info(f"Checking out this url {clone_url} to {local_path} with sparse checkout for path: {repository_path}")
+            # Step 4: Checkout the specified paths
+            result = subprocess.run(
+                ["git", "checkout"],
+                cwd=local_path,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+        else:
         # We use repo_url in the log to avoid exposing the token in logs
-        result = subprocess.run(
-            ["git", "clone", "--depth", "1", clone_url, local_path],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+            result = subprocess.run(
+                ["git", "clone", "--depth=1", clone_url, local_path],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
 
         logger.info("Repository cloned successfully")
         return result.stdout.decode("utf-8")
@@ -128,7 +169,7 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
         # Sanitize error message to remove any tokens
         if access_token and access_token in error_msg:
             error_msg = error_msg.replace(access_token, "***TOKEN***")
-        raise ValueError(f"Error during cloning: {error_msg}")
+        raise ValueError(f"Error during cloning: {error_msg} and stacktrace: {e}")
     except Exception as e:
         raise ValueError(f"An unexpected error occurred: {str(e)}")
 
@@ -641,7 +682,7 @@ class DatabaseManager:
 
     def prepare_database(self, repo_url_or_path: str, type: str = "github", access_token: str = None, is_ollama_embedder: bool = None,
                        excluded_dirs: List[str] = None, excluded_files: List[str] = None,
-                       included_dirs: List[str] = None, included_files: List[str] = None) -> List[Document]:
+                       included_dirs: List[str] = None, included_files: List[str] = None, repository_path: str = None) -> List[Document]:
         """
         Create a new database from the repository.
 
@@ -659,7 +700,8 @@ class DatabaseManager:
             List[Document]: List of Document objects
         """
         self.reset_database()
-        self._create_repo(repo_url_or_path, type, access_token)
+        logger.info(f"Got repository path: {repository_path} in prepare_database")
+        self._create_repo(repo_url_or_path, type, access_token, repository_path)
         return self.prepare_db_index(is_ollama_embedder=is_ollama_embedder, excluded_dirs=excluded_dirs, excluded_files=excluded_files,
                                    included_dirs=included_dirs, included_files=included_files)
 
@@ -696,7 +738,7 @@ class DatabaseManager:
             repo_name = url_parts[-1].replace(".git", "")
         return repo_name
 
-    def _create_repo(self, repo_url_or_path: str, repo_type: str = "github", access_token: str = None) -> None:
+    def _create_repo(self, repo_url_or_path: str, repo_type: str = "github", access_token: str = None, repository_path: str = None) -> None:
         """
         Download and prepare all paths.
         Paths:
@@ -708,6 +750,7 @@ class DatabaseManager:
             access_token (str, optional): Access token for private repositories
         """
         logger.info(f"Preparing repo storage for {repo_url_or_path}...")
+        logger.info(f"Got repository path: {repository_path} in _create_repo")
 
         try:
             root_path = "/.deepwikismb" #get_adalflow_default_root_path()
@@ -724,7 +767,7 @@ class DatabaseManager:
                 # Check if the repository directory already exists and is not empty
                 if not (os.path.exists(save_repo_dir) and os.listdir(save_repo_dir)):
                     # Only download if the repository doesn't exist or is empty
-                    download_repo(repo_url_or_path, save_repo_dir, repo_type, access_token)
+                    download_repo(repo_url_or_path, save_repo_dir, repo_type, access_token, repository_path)
                 else:
                     logger.info(f"Repository already exists at {save_repo_dir}. Using existing repository.")
             else:  # local path

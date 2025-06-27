@@ -47,6 +47,7 @@ class ChatCompletionRequest(BaseModel):
     excluded_files: Optional[str] = Field(None, description="Comma-separated list of file patterns to exclude from processing")
     included_dirs: Optional[str] = Field(None, description="Comma-separated list of directories to include exclusively")
     included_files: Optional[str] = Field(None, description="Comma-separated list of file patterns to include exclusively")
+    repository_path: Optional[str] = Field(None, description="Custom path to the repository to get only certain folders from larger repositories")
 
 async def handle_websocket_chat(websocket: WebSocket):
     """
@@ -58,7 +59,9 @@ async def handle_websocket_chat(websocket: WebSocket):
     try:
         # Receive and parse the request data
         request_data = await websocket.receive_json()
+        logger.info(f"Received request data: {request_data}")
         request = ChatCompletionRequest(**request_data)
+        logger.info(f"Parsed request: {request}")
 
         # Check if request contains very large input
         input_too_large = False
@@ -80,6 +83,7 @@ async def handle_websocket_chat(websocket: WebSocket):
             excluded_files = None
             included_dirs = None
             included_files = None
+            repository_path = None
 
             if request.excluded_dirs:
                 excluded_dirs = [unquote(dir_path) for dir_path in request.excluded_dirs.split('\n') if dir_path.strip()]
@@ -93,8 +97,12 @@ async def handle_websocket_chat(websocket: WebSocket):
             if request.included_files:
                 included_files = [unquote(file_pattern) for file_pattern in request.included_files.split('\n') if file_pattern.strip()]
                 logger.info(f"Using custom included files: {included_files}")
+            if request.repository_path:
+                repository_path = unquote(request.repository_path)
+                logger.info(f"Using custom repository path: {repository_path}")
 
-            request_rag.prepare_retriever(request.repo_url, request.type, request.token, excluded_dirs, excluded_files, included_dirs, included_files)
+            logger.info(f"Got repository path: {repository_path} in handle_websocket_chat")
+            request_rag.prepare_retriever(request.repo_url, request.type, request.token, excluded_dirs, excluded_files, included_dirs, included_files, repository_path)
             logger.info(f"Retriever prepared for {request.repo_url}")
         except ValueError as e:
             if "No valid documents with embeddings found" in str(e):
