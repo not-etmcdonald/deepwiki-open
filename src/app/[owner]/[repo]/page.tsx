@@ -105,6 +105,7 @@ const addTokensToRequestBody = (
   language: string = 'en',
   excludedDirs?: string,
   excludedFiles?: string,
+  repositoryPath?: string,
 ): void => {
   if (token !== '') {
     requestBody.token = token;
@@ -125,6 +126,9 @@ const addTokensToRequestBody = (
   }
   if (excludedFiles) {
     requestBody.excluded_files = excludedFiles;
+  }
+  if(repositoryPath) {
+    requestBody.repository_path = repositoryPath;
   }
 };
 
@@ -184,6 +188,8 @@ export default function RepoWikiPage() {
   const isCustomModelParam = searchParams.get('is_custom_model') === 'true';
   const customModelParam = searchParams.get('custom_model') || '';
   const language = searchParams.get('language') || 'en';
+
+  const repositoryPath = decodeURIComponent(searchParams.get('repository_path') || ''); // Get repository path from search params
 
   // Import language context for translations
   const { messages } = useLanguage();
@@ -304,7 +310,7 @@ export default function RepoWikiPage() {
   }, []);
 
   // Generate content for a wiki page
-  const generatePageContent = useCallback(async (page: WikiPage, owner: string, repo: string) => {
+  const generatePageContent = useCallback(async (page: WikiPage, owner: string, repo: string, repositoryPath: string) => {
     return new Promise<void>(async (resolve) => {
       try {
         // Skip if content already exists
@@ -450,7 +456,7 @@ Remember:
         };
 
         // Add tokens if available
-        addTokensToRequestBody(requestBody, currentToken, effectiveRepoInfo.type, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, language, modelExcludedDirs, modelExcludedFiles);
+        addTokensToRequestBody(requestBody, currentToken, effectiveRepoInfo.type, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, language, modelExcludedDirs, modelExcludedFiles, repositoryPath);
 
         // Use WebSocket for communication
         let content = '';
@@ -463,7 +469,6 @@ Remember:
 
           // Create a new WebSocket connection
           const ws = new WebSocket(wsUrl);
-
           // Create a promise that resolves when the WebSocket connection is complete
           await new Promise<void>((resolve, reject) => {
             // Set up event handlers
@@ -594,7 +599,7 @@ Remember:
   }, [generatedPages, currentToken, effectiveRepoInfo, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, language, activeContentRequests]);
 
   // Determine the wiki structure from repository data
-  const determineWikiStructure = useCallback(async (fileTree: string, readme: string, owner: string, repo: string) => {
+  const determineWikiStructure = useCallback(async (fileTree: string, readme: string, owner: string, repo: string, repositoryPath: string) => {
     if (!owner || !repo) {
       setError('Invalid repository information. Owner and repo name are required.');
       setIsLoading(false);
@@ -743,7 +748,7 @@ IMPORTANT:
       };
 
       // Add tokens if available
-      addTokensToRequestBody(requestBody, currentToken, effectiveRepoInfo.type, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, language, modelExcludedDirs, modelExcludedFiles);
+      addTokensToRequestBody(requestBody, currentToken, effectiveRepoInfo.type, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, language, modelExcludedDirs, modelExcludedFiles, repositoryPath);
 
       // Use WebSocket for communication
       let responseText = '';
@@ -1019,7 +1024,7 @@ IMPORTANT:
               console.log(`Starting page ${page.title} (${activeRequests} active, ${queue.length} remaining)`);
 
               // Start generating content for this page
-              generatePageContent(page, owner, repo)
+              generatePageContent(page, owner, repo, repositoryPath)
                 .finally(() => {
                   // When done (success or error), decrement active count and process more
                   activeRequests--;
@@ -1332,7 +1337,7 @@ IMPORTANT:
       }
 
       // Now determine the wiki structure
-      await determineWikiStructure(fileTreeData, readmeContent, owner, repo);
+      await determineWikiStructure(fileTreeData, readmeContent, owner, repo, repositoryPath);
 
     } catch (error) {
       console.error('Error fetching repository structure:', error);
@@ -1343,7 +1348,7 @@ IMPORTANT:
       // Reset the request in progress flag
       setRequestInProgress(false);
     }
-  }, [owner, repo, determineWikiStructure, currentToken, effectiveRepoInfo, requestInProgress, messages.loading]);
+  }, [owner, repo, determineWikiStructure, currentToken, effectiveRepoInfo, requestInProgress, messages.loading, repositoryPath]);
 
   // Function to export wiki content
   const exportWiki = useCallback(async (format: 'markdown' | 'json') => {
@@ -1449,6 +1454,9 @@ IMPORTANT:
       if (modelExcludedFiles) {
         params.append('excluded_files', modelExcludedFiles);
       }
+      if(repositoryPath) {
+        params.append('repository_path', repositoryPath);
+      }
 
       if(authRequired && !authCode) {
         setIsLoading(false);
@@ -1535,7 +1543,7 @@ IMPORTANT:
     // For now, we rely on the standard loadData flow initiated by resetting effectRan and dependencies.
     // This will re-trigger the main data loading useEffect.
     // No direct call to fetchRepositoryStructure here, let the useEffect handle it based on effectRan.current = false.
-  }, [effectiveRepoInfo, language, messages.loading, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, isComprehensiveView, authCode, authRequired]);
+  }, [effectiveRepoInfo, language, messages.loading, activeContentRequests, selectedProviderState, selectedModelState, isCustomSelectedModelState, customSelectedModelState, modelExcludedDirs, modelExcludedFiles, repositoryPath, isComprehensiveView, authCode, authRequired]);
 
   // Start wiki generation when component mounts
   useEffect(() => {

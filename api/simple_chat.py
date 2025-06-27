@@ -65,6 +65,7 @@ class ChatCompletionRequest(BaseModel):
     excluded_files: Optional[str] = Field(None, description="Comma-separated list of file patterns to exclude from processing")
     included_dirs: Optional[str] = Field(None, description="Comma-separated list of directories to include exclusively")
     included_files: Optional[str] = Field(None, description="Comma-separated list of file patterns to include exclusively")
+    repository_path: Optional[str] = Field(None, description="Custom path to the repository to get only certain folders from larger repositories")
 
 @app.post("/chat/completions/stream")
 async def chat_completions_stream(request: ChatCompletionRequest):
@@ -90,6 +91,7 @@ async def chat_completions_stream(request: ChatCompletionRequest):
             excluded_files = None
             included_dirs = None
             included_files = None
+            repository_path = None
 
             if request.excluded_dirs:
                 excluded_dirs = [unquote(dir_path) for dir_path in request.excluded_dirs.split('\n') if dir_path.strip()]
@@ -103,8 +105,11 @@ async def chat_completions_stream(request: ChatCompletionRequest):
             if request.included_files:
                 included_files = [unquote(file_pattern) for file_pattern in request.included_files.split('\n') if file_pattern.strip()]
                 logger.info(f"Using custom included files: {included_files}")
+            if request.repository_path:
+                repository_path = unquote(request.repository_path)
+                logger.info(f"Using custom repository path: {repository_path}")
 
-            request_rag.prepare_retriever(request.repo_url, request.type, request.token, excluded_dirs, excluded_files, included_dirs, included_files)
+            request_rag.prepare_retriever(request.repo_url, request.type, request.token, excluded_dirs, excluded_files, included_dirs, included_files, repository_path)
             logger.info(f"Retriever prepared for {request.repo_url}")
         except ValueError as e:
             if "No valid documents with embeddings found" in str(e):

@@ -12,6 +12,10 @@ interface ConfigurationModalProps {
   // Repository input
   repositoryInput: string;
 
+  // Repository path
+  repositoryPath: string;
+  setRepositoryPath: (value: string) => void;
+
   // Language selection
   selectedLanguage: string;
   setSelectedLanguage: (value: string) => void;
@@ -64,6 +68,8 @@ export default function ConfigurationModal({
   isOpen,
   onClose,
   repositoryInput,
+  repositoryPath,
+  setRepositoryPath,
   selectedLanguage,
   setSelectedLanguage,
   supportedLanguages,
@@ -133,6 +139,16 @@ export default function ConfigurationModal({
               <div className="bg-[var(--background)]/70 p-3 rounded-md border border-[var(--border-color)] text-sm text-[var(--foreground)]">
                 {repositoryInput}
               </div>
+              {/* Included folders for repository */}
+              <label className="block text-sm font-medium text-[var(--foreground)] mb-2">
+                {t.form?.filePath || 'Include Folder Path (only these folders will be used in git clone, better for large repositories)'}
+              </label>
+              <input
+                type="text"
+                value={repositoryPath}
+                onChange={(e) => setRepositoryPath(e.target.value)}
+                className="w-full bg-[var(--background)]/70 p-3 rounded-md border border-[var(--border-color)] text-sm text-[var(--foreground)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              />
             </div>
 
             {/* Language selection */}
