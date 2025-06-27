@@ -408,7 +408,6 @@ IMPORTANT FORMATTING RULES:
         """
         self.initialize_db_manager()
         self.repo_url_or_path = repo_url_or_path
-        logger.info(f"Got repository path: {repository_path} in prepare_retriever")
         self.transformed_docs = self.db_manager.prepare_database(
             repo_url_or_path,
             type,

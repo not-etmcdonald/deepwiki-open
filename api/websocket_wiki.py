@@ -99,7 +99,6 @@ async def handle_websocket_chat(websocket: WebSocket):
                 repository_path = unquote(request.repository_path)
                 logger.info(f"Using custom repository path: {repository_path}")
 
-            logger.info(f"Got repository path: {repository_path} in handle_websocket_chat")
             request_rag.prepare_retriever(request.repo_url, request.type, request.token, excluded_dirs, excluded_files, included_dirs, included_files, repository_path)
             logger.info(f"Retriever prepared for {request.repo_url}")
         except ValueError as e:

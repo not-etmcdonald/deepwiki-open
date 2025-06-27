@@ -113,7 +113,7 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
         # Clone the repository
         if repository_path:
             # If a specific path is provided, use sparse checkout
-            logger.info(f"Using sparse checkout for path: {repository_path}")
+            logger.info(f"Using sparse checkout")
             # Step 1: Clone without checkout
             subprocess.run(
                 ["git", "clone", "--depth=1", "--filter=blob:none", "--no-checkout", clone_url, local_path],
@@ -122,7 +122,7 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
                 stderr=subprocess.PIPE,
             )
 
-            logger.info(f"Repository cloned to {local_path}. Now setting up sparse checkout for path: {repository_path}")
+            logger.info(f"Repository cloned, Now setting up sparse checkout for included path")
             # Step 2: Enable sparse checkout
             subprocess.run(
                 ["git", "sparse-checkout", "init", "--cone"],
@@ -133,7 +133,7 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
             )
 
             # Step 3: Set the sparse checkout paths
-            logger.info(f"Setting sparse checkout paths: {repository_path}")
+            logger.info(f"Setting sparse checkout included paths")
             subprocess.run(
                 ["git", "sparse-checkout", "set", repository_path],
                 cwd=local_path,
@@ -142,7 +142,7 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
                 stderr=subprocess.PIPE,
             )
 
-            logger.info(f"Checking out this url {clone_url} to {local_path} with sparse checkout for path: {repository_path}")
+            logger.info(f"Checking out repository")
             # Step 4: Checkout the specified paths
             result = subprocess.run(
                 ["git", "checkout"],
@@ -749,8 +749,6 @@ class DatabaseManager:
             access_token (str, optional): Access token for private repositories
         """
         logger.info(f"Preparing repo storage for {repo_url_or_path}...")
-        logger.info(f"Got repository path: {repository_path} in _create_repo")
-
         try:
             root_path = "/.deepwikismb" #get_adalflow_default_root_path()
 

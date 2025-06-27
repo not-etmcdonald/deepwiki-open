@@ -109,7 +109,6 @@ async def chat_completions_stream(request: ChatCompletionRequest):
                 repository_path = unquote(request.repository_path)
                 logger.info(f"Using custom repository path: {repository_path}")
 
-            logger.info(f"Got repository path: {repository_path} in chat_completions_stream")
             request_rag.prepare_retriever(request.repo_url, request.type, request.token, excluded_dirs, excluded_files, included_dirs, included_files, repository_path)
             logger.info(f"Retriever prepared for {request.repo_url}")
         except ValueError as e:
