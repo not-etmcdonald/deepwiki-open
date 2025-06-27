@@ -49,7 +49,7 @@ def count_tokens(text: str, is_ollama_embedder: bool = None) -> int:
         if is_ollama_embedder:
             encoding = tiktoken.get_encoding("cl100k_base")
         else:
-            encoding = tiktoken.encoding_for_model("text-embedding-3-small")
+            encoding = tiktoken.encoding_for_model("text-embedding-3-large")
 
         return len(encoding.encode(text))
     except Exception as e:
@@ -60,7 +60,7 @@ def count_tokens(text: str, is_ollama_embedder: bool = None) -> int:
 
 def download_repo(repo_url: str, local_path: str, type: str = "github", access_token: str = None) -> str:
     """
-    Downloads a Git repository (GitHub, GitLab, or Bitbucket) to a specified local path.
+    Downloads a Git repository (GitHub or Azure Devops) to a specified local path.
 
     Args:
         repo_url (str): The URL of the Git repository to clone.
@@ -97,12 +97,6 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
             if type == "github":
                 # Format: https://{token}@github.com/owner/repo.git
                 clone_url = urlunparse((parsed.scheme, f"{access_token}@{parsed.netloc}", parsed.path, '', '', ''))
-            elif type == "gitlab":
-                # Format: https://oauth2:{token}@gitlab.com/owner/repo.git
-                clone_url = urlunparse((parsed.scheme, f"oauth2:{access_token}@{parsed.netloc}", parsed.path, '', '', ''))
-            elif type == "bitbucket":
-                # Format: https://{token}@bitbucket.org/owner/repo.git
-                clone_url = urlunparse((parsed.scheme, f"{access_token}@{parsed.netloc}", parsed.path, '', '', ''))
             elif type == "azuredevops":
                 if not ADO_ORG or not ADO_PROJECT:
                     raise ValueError("ADO_ORG and ADO_PROJECT environment variables must be set for Azure DevOps repositories.")
@@ -120,7 +114,7 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
         logger.info(f"Cloning repository from {repo_url} to {local_path}")
         # We use repo_url in the log to avoid exposing the token in logs
         result = subprocess.run(
-            ["git", "clone", clone_url, local_path],
+            ["git", "clone", "--depth", "1", clone_url, local_path],
             check=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
