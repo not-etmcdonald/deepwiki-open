@@ -2101,6 +2101,7 @@ IMPORTANT:
               isCustomModel={isCustomSelectedModelState}
               customModel={customSelectedModelState}
               language={language}
+              repository_path = {repositoryPath}
               onRef={(ref) => (askComponentRef.current = ref)}
             />
           </div>
