@@ -49,6 +49,9 @@ export const createChatWebSocket = (
 ): WebSocket => {
   // Create WebSocket connection
   const ws = new WebSocket(getWebSocketUrl());
+
+  console.log(`Public web socket url: ${process.env.NEXT_PUBLIC_SERVER_BASE_URL}`);
+  console.log(`final ws url: ${ws}`);
   
   // Set up event handlers
   ws.onopen = () => {

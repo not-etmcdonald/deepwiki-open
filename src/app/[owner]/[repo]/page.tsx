@@ -467,9 +467,6 @@ Remember:
           const wsBaseUrl = serverBaseUrl.replace(/^http/, 'ws');
           const wsUrl = `${wsBaseUrl}/ws/chat`;
 
-          console.log(`Public web socket url: ${process.env.NEXT_PUBLIC_SERVER_BASE_URL}`);
-          console.log(`final ws url: ${wsUrl}`);
-
           // Create a new WebSocket connection
           const ws = new WebSocket(wsUrl);
           // Create a promise that resolves when the WebSocket connection is complete
