@@ -400,7 +400,7 @@ os.makedirs(WIKI_CACHE_DIR, exist_ok=True)
 def get_wiki_cache_path(owner: str, repo: str, repo_type: str, language: str, repository_path: str = None) -> str:
     """Generates the file path for a given wiki cache."""
     # Use the repository_path string directly if provided and not empty, but sanitize path separators
-    if repository_path and repository_path != "":
+    if repository_path and repository_path != "" and repository_path is not None and repository_path != "null":
         safe_repo_path = re.sub(r"[\\/]", "-", repository_path.strip("/"))
         filename = f"deepwiki_cache_{repo_type}_{owner}_{repo}__{safe_repo_path}_{language}.json"
     else:

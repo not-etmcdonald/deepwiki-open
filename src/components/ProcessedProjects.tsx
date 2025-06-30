@@ -115,6 +115,7 @@ export default function ProcessedProjects({
           repo: project.repo,
           repo_type: project.repo_type,
           language: project.language,
+          repository_path: project.repository_path,
         }),
       });
       if (!response.ok) {
