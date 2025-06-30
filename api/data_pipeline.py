@@ -730,7 +730,7 @@ class DatabaseManager:
             # Check if user provided subpath
             if repository_path:
                 safe_repo_path = re.sub(r"[\\/]", "-", repository_path.strip("/"))
-                repo_name = f"{project}_{repo}_{safe_repo_path}"
+                repo_name = f"{project}_{repo}__{safe_repo_path}"
             
         elif repo_type in ["github", "gitlab", "bitbucket"] and len(url_parts) >= 5:
             # GitHub URL format: https://github.com/owner/repo
