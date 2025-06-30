@@ -13,6 +13,7 @@ interface ProcessedProject {
   repo_type: string;
   submittedAt: number;
   language: string;
+  repository_path: string;
 }
 
 interface ProcessedProjectsProps {
@@ -205,7 +206,7 @@ export default function ProcessedProjects({
                   <FaTimes className="h-4 w-4" />
                 </button>
                 <Link
-                  href={`/${project.owner}/${project.repo}?type=${project.repo_type}&language=${project.language}`}
+                  href={`/${project.owner}/${project.repo}?type=${project.repo_type}&language=${project.language}&repository_path=${project.repository_path}`}
                   className="block"
                 >
                   <h3 className="text-lg font-semibold text-[var(--link-color)] hover:underline mb-2 line-clamp-2">
@@ -217,6 +218,9 @@ export default function ProcessedProjects({
                     </span>
                     <span className="px-2 py-1 text-xs bg-[var(--background)] text-[var(--muted)] rounded-full border border-[var(--border-color)]">
                       {project.language}
+                    </span>
+                    <span className="px-2 py-1 text-xs bg-[var(--background)] text-[var(--muted)] rounded-full border border-[var(--border-color)]">
+                      {project.repository_path}
                     </span>
                   </div>
                   <p className="text-xs text-[var(--muted)]">
@@ -235,7 +239,7 @@ export default function ProcessedProjects({
                   <FaTimes className="h-4 w-4" />
                 </button>
                 <Link
-                  href={`/${project.owner}/${project.repo}?type=${project.repo_type}&language=${project.language}`}
+                  href={`/${project.owner}/${project.repo}?type=${project.repo_type}&language=${project.language}&repository_path=${project.repository_path}`}
                   className="flex items-center justify-between"
                 >
                   <div className="flex-1 min-w-0">

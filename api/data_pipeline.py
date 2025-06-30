@@ -712,7 +712,7 @@ class DatabaseManager:
         self.repo_url_or_path = None
         self.repo_paths = None
 
-    def _extract_repo_name_from_url(self, repo_url_or_path: str, repo_type: str) -> str:
+    def _extract_repo_name_from_url(self, repo_url_or_path: str, repo_type: str, repository_path: str = None) -> str:
         # Remove trailing slashes and .git suffix
         cleaned_url = repo_url_or_path.rstrip('/').replace(".git", "")
         url_parts = cleaned_url.split('/')
@@ -726,6 +726,12 @@ class DatabaseManager:
                 repo_name = f"{project}_{repo}"
             else:
                 repo_name = url_parts[-1]
+
+            # Check if user provided subpath
+            if repository_path:
+                safe_repo_path = re.sub(r"[\\/]", "-", repository_path.strip("/"))
+                repo_name = f"{project}_{repo}_{safe_repo_path}"
+            
         elif repo_type in ["github", "gitlab", "bitbucket"] and len(url_parts) >= 5:
             # GitHub URL format: https://github.com/owner/repo
             # GitLab URL format: https://gitlab.com/owner/repo or https://gitlab.com/group/subgroup/repo
@@ -756,7 +762,7 @@ class DatabaseManager:
             # url
             if repo_url_or_path.startswith("https://") or repo_url_or_path.startswith("http://"):
                 # Extract the repository name from the URL
-                repo_name = self._extract_repo_name_from_url(repo_url_or_path, repo_type)
+                repo_name = self._extract_repo_name_from_url(repo_url_or_path, repo_type, repository_path)
                 logger.info(f"Extracted repo name: {repo_name}")
 
                 save_repo_dir = os.path.join(root_path, "repos", repo_name)

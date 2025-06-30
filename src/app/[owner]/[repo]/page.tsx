@@ -1560,6 +1560,7 @@ IMPORTANT:
             repo_type: effectiveRepoInfo.type,
             language: language,
             comprehensive: isComprehensiveView.toString(),
+            repository_path: repositoryPath,
           });
           const response = await fetch(`/api/wiki_cache?${params.toString()}`);
 
@@ -1732,7 +1733,7 @@ IMPORTANT:
 
     // Clean up function for this effect is not strictly necessary for loadData,
     // but keeping the main unmount cleanup in the other useEffect
-  }, [effectiveRepoInfo, effectiveRepoInfo.owner, effectiveRepoInfo.repo, effectiveRepoInfo.type, language, fetchRepositoryStructure, messages.loading?.fetchingCache, isComprehensiveView]);
+  }, [effectiveRepoInfo, effectiveRepoInfo.owner, effectiveRepoInfo.repo, effectiveRepoInfo.type, language, fetchRepositoryStructure, messages.loading?.fetchingCache, isComprehensiveView, repositoryPath]);
 
   // Save wiki to server-side cache when generation is complete
   useEffect(() => {
@@ -1764,7 +1765,8 @@ IMPORTANT:
               wiki_structure: structureToCache,
               generated_pages: generatedPages,
               provider: selectedProviderState,
-              model: selectedModelState
+              model: selectedModelState,
+              ...(repositoryPath && repositoryPath.trim() !== "" ? { repository_path: repositoryPath } : {})
             };
             const response = await fetch(`/api/wiki_cache`, {
               method: 'POST',
@@ -1787,7 +1789,7 @@ IMPORTANT:
     };
 
     saveCache();
-  }, [isLoading, error, wikiStructure, generatedPages, effectiveRepoInfo.owner, effectiveRepoInfo.repo, effectiveRepoInfo.type, effectiveRepoInfo.repoUrl, repoUrl, language, isComprehensiveView]);
+  }, [isLoading, error, wikiStructure, generatedPages, effectiveRepoInfo.owner, effectiveRepoInfo.repo, effectiveRepoInfo.type, effectiveRepoInfo.repoUrl, repoUrl, language, isComprehensiveView, repositoryPath]);
 
   const handlePageSelect = (pageId: string) => {
     if (currentPageId != pageId) {
@@ -1929,7 +1931,7 @@ IMPORTANT:
                       rel="noopener noreferrer"
                       className="hover:text-[var(--accent-primary)] transition-colors border-b border-[var(--border-color)] hover:border-[var(--accent-primary)]"
                     >
-                      {effectiveRepoInfo.owner}/{effectiveRepoInfo.repo}
+                      {effectiveRepoInfo.owner}/{effectiveRepoInfo.repo}/{repositoryPath}
                     </a>
                   </>
                 )}

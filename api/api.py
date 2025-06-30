@@ -9,6 +9,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import google.generativeai as genai
 import asyncio
+import re
 
 # Configure logging
 from api.logging_config import setup_logging
@@ -56,6 +57,7 @@ class ProcessedProjectEntry(BaseModel):
     repo_type: str # Renamed from type to repo_type for clarity with existing models
     submittedAt: int # Timestamp
     language: str # Extracted from filename
+    repository_path: Optional[str]
 
 class RepoInfo(BaseModel):
     owner: str
@@ -85,6 +87,7 @@ class WikiCacheData(BaseModel):
     repo: Optional[RepoInfo] = None
     provider: Optional[str] = None
     model: Optional[str] = None
+    repository_path: Optional[str] = None
 
 class WikiCacheRequest(BaseModel):
     """
@@ -96,6 +99,7 @@ class WikiCacheRequest(BaseModel):
     generated_pages: Dict[str, WikiPage]
     provider: str
     model: str
+    repository_path: Optional[str] = None # If there was a path included by user, e.g. project/blah
 
 class WikiExportRequest(BaseModel):
     """
@@ -393,14 +397,20 @@ app.add_websocket_route("/ws/chat", handle_websocket_chat)
 WIKI_CACHE_DIR = os.path.join("/.deepwikismb", "wikicache")
 os.makedirs(WIKI_CACHE_DIR, exist_ok=True)
 
-def get_wiki_cache_path(owner: str, repo: str, repo_type: str, language: str) -> str:
+def get_wiki_cache_path(owner: str, repo: str, repo_type: str, language: str, repository_path: str = None) -> str:
     """Generates the file path for a given wiki cache."""
-    filename = f"deepwiki_cache_{repo_type}_{owner}_{repo}_{language}.json"
+    # Use the repository_path string directly if provided and not empty, but sanitize path separators
+    if repository_path and repository_path != "":
+        safe_repo_path = re.sub(r"[\\/]", "-", repository_path.strip("/"))
+        filename = f"deepwiki_cache_{repo_type}_{owner}_{repo}__{safe_repo_path}_{language}.json"
+    else:
+        filename = f"deepwiki_cache_{repo_type}_{owner}_{repo}_{language}.json"
     return os.path.join(WIKI_CACHE_DIR, filename)
 
-async def read_wiki_cache(owner: str, repo: str, repo_type: str, language: str) -> Optional[WikiCacheData]:
+async def read_wiki_cache(owner: str, repo: str, repo_type: str, language: str, repository_path: str = None) -> Optional[WikiCacheData]:
     """Reads wiki cache data from the file system."""
-    cache_path = get_wiki_cache_path(owner, repo, repo_type, language)
+    cache_path = get_wiki_cache_path(owner, repo, repo_type, language, repository_path)
+    logger.info(f"Attempting to read wiki cache path for: {cache_path}")
     if os.path.exists(cache_path):
         try:
             with open(cache_path, 'r', encoding='utf-8') as f:
@@ -413,7 +423,7 @@ async def read_wiki_cache(owner: str, repo: str, repo_type: str, language: str) 
 
 async def save_wiki_cache(data: WikiCacheRequest) -> bool:
     """Saves wiki cache data to the file system."""
-    cache_path = get_wiki_cache_path(data.repo.owner, data.repo.repo, data.repo.type, data.language)
+    cache_path = get_wiki_cache_path(data.repo.owner, data.repo.repo, data.repo.type, data.language, data.repository_path)
     logger.info(f"Attempting to save wiki cache. Path: {cache_path}")
     try:
         payload = WikiCacheData(
@@ -421,7 +431,8 @@ async def save_wiki_cache(data: WikiCacheRequest) -> bool:
             generated_pages=data.generated_pages,
             repo=data.repo,
             provider=data.provider,
-            model=data.model
+            model=data.model,
+            repository_path=data.repository_path
         )
         # Log size of data to be cached for debugging (avoid logging full content if large)
         try:
@@ -451,7 +462,8 @@ async def get_cached_wiki(
     owner: str = Query(..., description="Repository owner"),
     repo: str = Query(..., description="Repository name"),
     repo_type: str = Query(..., description="Repository type (e.g., github, gitlab)"),
-    language: str = Query(..., description="Language of the wiki content")
+    language: str = Query(..., description="Language of the wiki content"),
+    repository_path: Optional[str] = Query(None, description="File path to include in cache") # e.g. project/blah
 ):
     """
     Retrieves cached wiki data (structure and generated pages) for a repository.
@@ -461,14 +473,14 @@ async def get_cached_wiki(
     if not supported_langs.__contains__(language):
         language = configs["lang_config"]["default"]
 
-    logger.info(f"Attempting to retrieve wiki cache for {owner}/{repo} ({repo_type}), lang: {language}")
-    cached_data = await read_wiki_cache(owner, repo, repo_type, language)
+    logger.info(f"Attempting to retrieve wiki cache for {owner}/{repo} ({repo_type}), lang: {language}, repository path: {repository_path}")
+    cached_data = await read_wiki_cache(owner, repo, repo_type, language, repository_path)
     if cached_data:
         return cached_data
     else:
         # Return 200 with null body if not found, as frontend expects this behavior
         # Or, raise HTTPException(status_code=404, detail="Wiki cache not found") if preferred
-        logger.info(f"Wiki cache not found for {owner}/{repo} ({repo_type}), lang: {language}")
+        logger.info(f"Wiki cache not found for {owner}/{repo} ({repo_type}), lang: {language}, and repository path {repository_path}")
         return None
 
 @app.post("/api/wiki_cache")
@@ -482,10 +494,15 @@ async def store_wiki_cache(request_data: WikiCacheRequest):
     if not supported_langs.__contains__(request_data.language):
         request_data.language = configs["lang_config"]["default"]
 
-    logger.info(f"Attempting to save wiki cache for {request_data.repo.owner}/{request_data.repo.repo} ({request_data.repo.type}), lang: {request_data.language}")
+    logger.info(f"Attempting to save wiki cache for {request_data.repo.owner}/{request_data.repo.repo} ({request_data.repo.type}), lang: {request_data.language}, included file path: {request_data.repository_path}")
     success = await save_wiki_cache(request_data)
     if success:
-        return {"message": "Wiki cache saved successfully"}
+        # Check if repositoryPath exists in request_data.repo
+        repo_path = request_data.repository_path
+        if repo_path and os.path.exists(repo_path):
+            return {"message": "Wiki cache saved successfully and repositoryPath exists", "repositoryPath": repo_path}
+        else:
+            return {"message": "Wiki cache saved successfully"}
     else:
         raise HTTPException(status_code=500, detail="Failed to save wiki cache")
 
@@ -495,7 +512,8 @@ async def delete_wiki_cache(
     repo: str = Query(..., description="Repository name"),
     repo_type: str = Query(..., description="Repository type (e.g., github, gitlab)"),
     language: str = Query(..., description="Language of the wiki content"),
-    authorization_code: Optional[str] = Query(None, description="Authorization code")
+    authorization_code: Optional[str] = Query(None, description="Authorization code"),
+    repository_path: Optional[str] = Query(None, description="File path to include in cache") # "e.g. project/blah"
 ):
     """
     Deletes a specific wiki cache from the file system.
@@ -510,14 +528,14 @@ async def delete_wiki_cache(
         if WIKI_AUTH_CODE != authorization_code:
             raise HTTPException(status_code=401, detail="Authorization code is invalid")
 
-    logger.info(f"Attempting to delete wiki cache for {owner}/{repo} ({repo_type}), lang: {language}")
-    cache_path = get_wiki_cache_path(owner, repo, repo_type, language)
+    logger.info(f"Attempting to delete wiki cache for {owner}/{repo} ({repo_type}), lang: {language}, repository path: {repository_path}")
+    cache_path = get_wiki_cache_path(owner, repo, repo_type, language, repository_path)
 
     if os.path.exists(cache_path):
         try:
             os.remove(cache_path)
             logger.info(f"Successfully deleted wiki cache: {cache_path}")
-            return {"message": f"Wiki cache for {owner}/{repo} ({language}) deleted successfully"}
+            return {"message": f"Wiki cache for {owner}/{repo} ({language}) ({repository_path}) deleted successfully"}
         except Exception as e:
             logger.error(f"Error deleting wiki cache {cache_path}: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to delete wiki cache: {str(e)}")
@@ -566,7 +584,9 @@ async def root():
 async def get_processed_projects():
     """
     Lists all processed projects found in the wiki cache directory.
-    Projects are identified by files named like: deepwiki_cache_{repo_type}_{owner}_{repo}_{language}.json
+    Projects are identified by files named:
+    - deepwiki_cache_{repo_type}_{owner}_{repo}_{language}.json
+    - deepwiki_cache_{repo_type}_{owner}_{repo}__{repository_path}_{language}.json
     """
     project_entries: List[ProcessedProjectEntry] = []
     # WIKI_CACHE_DIR is already defined globally in the file
@@ -584,31 +604,46 @@ async def get_processed_projects():
                 file_path = os.path.join(WIKI_CACHE_DIR, filename)
                 try:
                     stats = await asyncio.to_thread(os.stat, file_path) # Use asyncio.to_thread for os.stat
-                    parts = filename.replace("deepwiki_cache_", "").replace(".json", "").split('_')
 
-                    # Expecting repo_type_owner_repo_language
-                    # Example: deepwiki_cache_github_AsyncFuncAI_deepwiki-open_en.json
-                    # parts = [github, AsyncFuncAI, deepwiki-open, en]
-                    print("Here are the parts of processed project filename:", parts)
-                    if len(parts) >= 4:
-                        repo_type = parts[0]
-                        owner = parts[1]
-                        language = parts[-1] # language is the last part
-                        repo = "_".join(parts[2:-1]) # repo can contain underscores
+                    # Strip prefix and suffix
+                    base = filename.replace("deepwiki_cache_", "").replace(".json", "")
 
-                        project_entries.append(
-                            ProcessedProjectEntry(
-                                id=filename,
-                                owner=owner,
-                                repo=repo,
-                                name=f"{owner}/{repo}",
-                                repo_type=repo_type,
-                                submittedAt=int(stats.st_mtime * 1000), # Convert to milliseconds
-                                language=language
-                            )
-                        )
+                    # Split off the language (always last)
+                    try:
+                        repo_path_part, language = base.rsplit("_", 1)
+                    except ValueError:
+                        logger.warning(f"Invalid filename format (missing language): {filename}")
+                        continue
+
+                    # Check for optional __ separating repo and repository_path
+                    if "__" in repo_path_part:
+                        repo_info, repository_path = repo_path_part.split("__", 1)
                     else:
-                        logger.warning(f"Could not parse project details from filename: {filename}")
+                        repo_info = repo_path_part
+                        repository_path = None
+
+                    parts = repo_info.split("_")
+                    if len(parts) < 3:
+                        logger.warning(f"Invalid filename format (missing repo fields): {filename}")
+                        continue
+                    
+                    repo_type = parts[0]
+                    owner = parts[1]
+                    repo = "_".join(parts[2:])
+
+                    logger.info(f"here are the diff parts, type: {repo_type}, owner: {owner}, repo: {repo}, path: {repository_path}, language: {language}")
+                    project_entries.append(
+                        ProcessedProjectEntry(
+                            id=filename,
+                            owner=owner,
+                            repo=repo,
+                            name=f"{owner}/{repo}",
+                            repo_type=repo_type,
+                            submittedAt=int(stats.st_mtime * 1000),
+                            language=language,
+                            repository_path=repository_path
+                        )
+                    )
                 except Exception as e:
                     logger.error(f"Error processing file {file_path}: {e}")
                     continue # Skip this file on error
