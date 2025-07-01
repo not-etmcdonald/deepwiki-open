@@ -63,6 +63,10 @@ const nextConfig: NextConfig = {
         source: '/api/lang/config',
         destination: `${TARGET_SERVER_BASE_URL}/lang/config`,
       },
+      {
+        source: '/ws/:path',
+        destination: `${TARGET_SERVER_BASE_URL}/ws/:path` // Internal backend websocket path
+      }
     ];
   },
 };
