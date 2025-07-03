@@ -95,7 +95,8 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
             parsed = urlparse(repo_url)
             # Determine the repository type and format the URL accordingly
             if type == "github":
-                # Format: https://{token}@github.com/owner/repo.git
+                # Format: https://{token}@{domain}/owner/repo.git
+                # Works for both github.com and enterprise GitHub domains
                 clone_url = urlunparse((parsed.scheme, f"{access_token}@{parsed.netloc}", parsed.path, '', '', ''))
             elif type == "azuredevops":
                 if not ADO_ORG or not ADO_PROJECT:
@@ -463,9 +464,11 @@ def transform_documents_and_save_to_db(
 def get_github_file_content(repo_url: str, file_path: str, access_token: str = None) -> str:
     """
     Retrieves the content of a file from a GitHub repository using the GitHub API.
-
+    Supports both public GitHub (github.com) and GitHub Enterprise (custom domains).
+    
     Args:
-        repo_url (str): The URL of the GitHub repository (e.g., "https://github.com/username/repo")
+        repo_url (str): The URL of the GitHub repository 
+                       (e.g., "https://github.com/username/repo" or "https://github.company.com/username/repo")
         file_path (str): The path to the file within the repository (e.g., "src/main.py")
         access_token (str, optional): GitHub personal access token for private repositories
 
@@ -476,20 +479,30 @@ def get_github_file_content(repo_url: str, file_path: str, access_token: str = N
         ValueError: If the file cannot be fetched or if the URL is not a valid GitHub URL
     """
     try:
-        # Extract owner and repo name from GitHub URL
-        if not (repo_url.startswith("https://github.com/") or repo_url.startswith("http://github.com/")):
+        # Parse the repository URL to support both github.com and enterprise GitHub
+        parsed_url = urlparse(repo_url)
+        if not parsed_url.scheme or not parsed_url.netloc:
             raise ValueError("Not a valid GitHub repository URL")
 
-        parts = repo_url.rstrip('/').split('/')
-        if len(parts) < 5:
-            raise ValueError("Invalid GitHub URL format")
+        # Check if it's a GitHub-like URL structure
+        path_parts = parsed_url.path.strip('/').split('/')
+        if len(path_parts) < 2:
+            raise ValueError("Invalid GitHub URL format - expected format: https://domain/owner/repo")
 
-        owner = parts[-2]
-        repo = parts[-1].replace(".git", "")
+        owner = path_parts[-2]
+        repo = path_parts[-1].replace(".git", "")
 
+        # Determine the API base URL
+        if parsed_url.netloc == "github.com":
+            # Public GitHub
+            api_base = "https://api.github.com"
+        else:
+            # GitHub Enterprise - API is typically at https://domain/api/v3/
+            api_base = f"{parsed_url.scheme}://{parsed_url.netloc}/api/v3"
+        
         # Use GitHub API to get file content
         # The API endpoint for getting file content is: /repos/{owner}/{repo}/contents/{path}
-        api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{file_path}"
+        api_url = f"{api_base}/repos/{owner}/{repo}/contents/{file_path}"
 
         # Fetch file content from GitHub API
         headers = {}
@@ -560,8 +573,25 @@ def get_gitlab_file_content(repo_url: str, file_path: str, access_token: str = N
         # Encode file path
         encoded_file_path = quote(file_path, safe='')
 
-        # Default to 'main' branch if not specified
-        default_branch = 'main'
+        # Try to get the default branch from the project info
+        default_branch = None
+        try:
+            project_info_url = f"{gitlab_domain}/api/v4/projects/{encoded_project_path}"
+            project_headers = {}
+            if access_token:
+                project_headers["PRIVATE-TOKEN"] = access_token
+            
+            project_response = requests.get(project_info_url, headers=project_headers)
+            if project_response.status_code == 200:
+                project_data = project_response.json()
+                default_branch = project_data.get('default_branch', 'main')
+                logger.info(f"Found default branch: {default_branch}")
+            else:
+                logger.warning(f"Could not fetch project info, using 'main' as default branch")
+                default_branch = 'main'
+        except Exception as e:
+            logger.warning(f"Error fetching project info: {e}, using 'main' as default branch")
+            default_branch = 'main'
 
         api_url = f"{gitlab_domain}/api/v4/projects/{encoded_project_path}/repository/files/{encoded_file_path}/raw?ref={default_branch}"
         # Fetch file content from GitLab API
@@ -614,9 +644,29 @@ def get_bitbucket_file_content(repo_url: str, file_path: str, access_token: str 
         owner = parts[-2]
         repo = parts[-1].replace(".git", "")
 
+        # Try to get the default branch from the repository info
+        default_branch = None
+        try:
+            repo_info_url = f"https://api.bitbucket.org/2.0/repositories/{owner}/{repo}"
+            repo_headers = {}
+            if access_token:
+                repo_headers["Authorization"] = f"Bearer {access_token}"
+            
+            repo_response = requests.get(repo_info_url, headers=repo_headers)
+            if repo_response.status_code == 200:
+                repo_data = repo_response.json()
+                default_branch = repo_data.get('mainbranch', {}).get('name', 'main')
+                logger.info(f"Found default branch: {default_branch}")
+            else:
+                logger.warning(f"Could not fetch repository info, using 'main' as default branch")
+                default_branch = 'main'
+        except Exception as e:
+            logger.warning(f"Error fetching repository info: {e}, using 'main' as default branch")
+            default_branch = 'main'
+
         # Use Bitbucket API to get file content
         # The API endpoint for getting file content is: /2.0/repositories/{owner}/{repo}/src/{branch}/{path}
-        api_url = f"https://api.bitbucket.org/2.0/repositories/{owner}/{repo}/src/main/{file_path}"
+        api_url = f"https://api.bitbucket.org/2.0/repositories/{owner}/{repo}/src/{default_branch}/{file_path}"
 
         # Fetch file content from Bitbucket API
         headers = {}

@@ -265,7 +265,13 @@ Give me the numbered list with brief descriptions for each slide. Be creative bu
 
       try {
         // Create WebSocket URL from the server base URL
+<<<<<<< HEAD
         const wsUrl = `${window.location.origin.replace(/^http/, 'ws')}/ws/chat`;
+=======
+        const serverBaseUrl = process.env.SERVER_BASE_URL || 'http://localhost:8001';
+        const wsBaseUrl = serverBaseUrl.replace(/^http/, 'ws');
+        const wsUrl = `${wsBaseUrl}/ws/chat`;
+>>>>>>> upstream/main
 
         // Create a new WebSocket connection
         const ws = new WebSocket(wsUrl);
