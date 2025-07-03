@@ -111,7 +111,7 @@ def download_repo(repo_url: str, local_path: str, type: str = "github", access_t
             logger.info("Using access token for authentication")
 
         # Clone the repository
-        if repository_path:
+        if repository_path and repository_path != "null":
             # If a specific path is provided, use sparse checkout
             logger.info(f"Using sparse checkout")
             # Step 1: Clone without checkout
@@ -728,7 +728,7 @@ class DatabaseManager:
                 repo_name = url_parts[-1]
 
             # Check if user provided subpath
-            if repository_path:
+            if repository_path and repository_path != "null":
                 safe_repo_path = re.sub(r"[\\/]", "-", repository_path.strip("/"))
                 repo_name = f"{project}_{repo}__{safe_repo_path}"
             
